@@ -59,7 +59,7 @@
     unsigned short len_site;
   };
 
-  struct webBuf
+  struct netStream
   {
     char *pBuf;
     int  len;
@@ -99,31 +99,36 @@
   int listenSocket(int* pSocket);
 
   /*************************************************************************************
-  * Akzeptiere Socket
+  * Akzeptiere SOCKET
   */
   int acceptSocket(int *pAccepted,int *pConnected);
 
   /*************************************************************************************
-  * Erstellter Socket mit Adresse connecten
+  * Erstellter SOCKET mit Adresse connecten
   */
   int connectSocket(int sSocket,struct sockaddr_in *pAddress);
 
   /*************************************************************************************
-  * binde socket an Adresse
+  * binde SOCKET an Adresse
   */
   int bindSocket(int *pSocket,struct sockaddr_in *pAddress);
 
   /*************************************************************************************
   * char-array an socket schicken
   */
-  int sendBuffer(int sSocket, struct webBuf * pWebBuf);
+  int sendBuffer(int sSocket, struct netStream * pWebBuf);
+
+  /*************************************************************************************
+  * ERROR-Message an Socket schicken
+  */
+  int sendError(const char* pErrTxt, int sSocket, struct netStream * pStream);
 
   /*************************************************************************************
   * char-array vom socket lesen
   */
 
-  int receiveBuffer(struct webBuf* pWebBuf,int sProxyClient);
-  int receiveHeader(struct webBuf* pWebBuf,int sProxyClient);
+  int receiveBuffer(struct netStream* pWebBuf,int sProxyClient);
+  int receiveHeader(struct netStream* pWebBuf,int sProxyClient);
   /**************************************************************************************
   *buffer auswerten
   */
