@@ -37,7 +37,7 @@
  * Netzwerkverkehr zählen
  * @param int Bytes der übertragenen Datei
  * @param short IN=0 OUT=1
- * @return Pointer auf statistik-Struktur
+ * @return Pointer auf statische statistik-Struktur
  */
 #ifdef _STATS
 struct stats* countTraffic(int vBytes, unsigned short inout){
@@ -68,12 +68,12 @@ int generateProxyAddress(struct sockaddr_in* pAddress){
   pAddress->sin_port=htons(HTTP_PROXY_PORT);
   pAddress->sin_addr.s_addr=INADDR_ANY;
 
-  if(!pAddress->sin_port || pAddress==NULL)
-    return FALSE;
-
 #ifdef _DEBUG
   fprintf(stderr,"-- generateProxyAddress\n");
 #endif
+  if(!pAddress->sin_port || pAddress==NULL)
+    return FALSE;
+
   return TRUE;
 }
 
@@ -107,11 +107,12 @@ int generateWebAddress(struct sockaddr_in *pAddress,struct urlPar *pUrlPar){
       fprintf(stderr,"ERROR: Host nicht erreichbar\n");
       return FALSE;
     }
-  }
+  }else
+    return FALSE;
 #ifdef _DEBUG
   fprintf(stderr,"-- generateWebAddress\n");
 #endif
-return TRUE;
+  return TRUE;
 }
 
 /*************************************************************************************
@@ -126,18 +127,16 @@ int createSocket(int *sProxyWeb){
   *sProxyWeb=socket(AF_INET,SOCK_STREAM,0);
 
   if(*sProxyWeb==INVALID_SOCKET){
-    perror("Fehler: Der Socket konnte nicht erstellt werden");
-#ifdef _DEBUG
-    fprintf(stderr,"-- createSocket\n");
-#endif
-
-  return FALSE;
+    #ifdef _DEBUG
+      fprintf(stderr,"-- createSocket\n");
+    #endif
+    return FALSE;
   }else{
-#ifdef _DEBUG
-    fprintf(stderr,"§§Socket erstellt!\n");
-    fprintf(stderr,"§§pSocket:%d\n",*sProxyWeb);
-    fprintf(stderr,"-- createSocket\n");
-#endif
+    #ifdef _DEBUG
+      fprintf(stderr,"§§Socket erstellt!\n");
+      fprintf(stderr,"§§pSocket:%d\n",*sProxyWeb);
+      fprintf(stderr,"-- createSocket\n");
+    #endif
     return TRUE;
   }
 }
@@ -299,7 +298,7 @@ int vSent = ~0;
  */
 int sendError(const char* pErrTxt, int sSocket, struct netStream * pStream){
 #ifdef _DEBUG
-  fprintf(stderr,"++ sendBuffer\n");
+  fprintf(stderr,"++ sendERROR\n");
 #endif
 
 int vSent = 0;
@@ -326,7 +325,7 @@ int vSent = 0;
 #endif
 
 #ifdef _DEBUG
-  fprintf(stderr,"-- sendbuffer\n");
+  fprintf(stderr,"-- sendERROR\n");
 #endif
   if(vSent<=0)
     return FALSE;
@@ -345,10 +344,14 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
 #endif
 
   pWebBuf->len=recv(sProxyClient, pWebBuf->pBuf, RECEIVE_BUFFER_LENGTH , 0);
-  pWebBuf->pBuf[pWebBuf->len-1]='\0';
+//  pWebBuf->pBuf[pWebBuf->len-1]='\0';
 
-  if(pWebBuf->len<=0)
+  if(pWebBuf->len<=0){
+#ifdef _DEBUG
+    fprintf(stderr,"!! ERR receiveHEADER %d\n",pWebBuf->len);
+#endif
     return FALSE;
+  }
 
 #ifdef _OUTPUT
   fprintf(stderr,"<<<<<<<<%d Bytes read\n>>>>>>>>",pWebBuf->len);
@@ -520,21 +523,21 @@ void* handleClient(int* sProxyClient){
 /////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^
 
   if      (!receiveHeader (pClientBuf,*sProxyClient))
-    sendError("!!! Konnte Anfrage nicht ermitteln !!!",NULL,pClientBuf);
+    sendError("!!! Konnte Anfrage nicht ermitteln !!!"                        ,0,pClientBuf);
   else if (!fillParFromBuf(pUrlPar,pClientBuf->pBuf))
     sendError("!!! Keine Parameter in Anfrage gefunden !!!\n"                 ,*sProxyClient,pClientBuf);
   else if (!createSocket  (&sProxyWeb))
-    sendError("!!! Kein Socket erstellt !!!\n"                                ,*sProxyClient,NULL);
+    sendError("!!! Kein Socket erstellt !!!\n"                                ,*sProxyClient,0);
   else if (!generateWebAddress(&saProxyAddress,pUrlPar))
-    sendError("!!! angefragte IP nicht gefunden !!!\n"                        ,*sProxyClient,NULL);
+    sendError("!!! angefragte IP nicht gefunden !!!\n"                        ,*sProxyClient,0);
   else if (!connectSocket (sProxyWeb,&saProxyAddress))
-    sendError("!!! Verbindung konnte nicht hergestellt werden !!!\n"          ,*sProxyClient,NULL);
+    sendError("!!! Verbindung konnte nicht hergestellt werden !!!\n"          ,*sProxyClient,0);
   else if (!sendBuffer    (sProxyWeb,pClientBuf))
     sendError("!!! Daten konnten nicht geschickt werden ABBRUCH >>>>%s<<<<<\n",*sProxyClient,pClientBuf);
   else if (!receiveBuffer (pWebBuf,sProxyWeb))
     sendError("!!! Daten konnten nicht empfangen werden >>>>%d#><#%s !!!\n"   ,*sProxyClient,pWebBuf);
   else if (!sendBuffer    (*sProxyClient,pWebBuf))
-    sendError("!!! Daten konnten nicht geschickt werden >>>>%d#><#%s !!!\n"   ,NULL         ,pWebBuf);
+    sendError("!!! Daten konnten nicht geschickt werden >>>>%d#><#%s !!!\n"   ,0         ,pWebBuf);
 
   free(pClientBuf->pBuf);
   free(pClientBuf);
