@@ -49,8 +49,7 @@
   #define FALSE 0x00
   /*--------------------*/
 
-  struct urlPar
-  {
+  struct urlPar{
     char url[BUFFER_LENGTH];
     unsigned short len_url;
     char host[BUFFER_LENGTH];
@@ -59,8 +58,11 @@
     unsigned short len_site;
   };
 
-  struct netStream
-  {
+  struct threadParam{
+    int socketID;
+  };
+
+  struct netStream{
     char *pBuf;
     int  len;
   };
@@ -101,7 +103,7 @@
   /*************************************************************************************
   * Akzeptiere SOCKET
   */
-  int acceptSocket(int *pAccepted,int *pConnected);
+  int acceptSocket(int accepted,int *pConnected);
 
   /*************************************************************************************
   * Erstellter SOCKET mit Adresse connecten
@@ -138,7 +140,7 @@
   * Abwicklung fuer den Modus [Client-Start]
   * @return int EXIT_SUCCESS
   */
-  void* handleClient(int* sProxyClient);
+  void* handleClient(void* pThreadParameter);
 
   /**************************************************************************************
   * Abwicklung fuer den Modus [SERVER-Start]
@@ -149,5 +151,5 @@
   /**************************************************************************************
   * Neuer Thread für die Verarbeitung eines neuen ClientSockets wird erstellt
   */
-  int threadNewClient(int* clientSocket);
+  int threadNewClient(void* pThreadParameter);
 #endif
