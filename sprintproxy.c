@@ -189,12 +189,12 @@ int listenSocket(int* pSocket){
  * @param int* Pointer auf akzeptierten Socket
  * @param int* Rückggabe pointer auf Verbundenen Socket
  */
-int acceptSocket(int *pAccepted,int *pConnected){
+int acceptSocket(int accepted,int* pConnected){
   #ifdef _DEBUG
   fprintf(stderr,"++ acceptSocket\n");
   #endif
 
-  *pConnected=accept(*pAccepted,NULL,NULL);
+  *pConnected=accept(accepted,NULL,NULL);
 
   if(*pConnected==INVALID_SOCKET){
     #ifdef _DEBUG
@@ -203,7 +203,7 @@ int acceptSocket(int *pAccepted,int *pConnected){
     return FALSE;
   }else{
     #ifdef _DEBUG
-    fprintf(stderr,"-- acceptSocket | ACCEPTED %d %d\n",*pConnected, *pAccepted);
+    fprintf(stderr,"-- acceptSocket | ACCEPTED %d %d\n",*pConnected, accepted);
     #endif
     return TRUE;
   }
@@ -530,13 +530,14 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
  *   8 Antwort von IP empfangen
  *   9 Antwort an Client schicken
  */
-void* handleClient(int* sProxyClient){
+void* handleClient(void* pTP){
   #ifdef _DEBUG
   fprintf(stderr,"++ handleclient\n");
   #endif
 /////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^
   int     sProxyWeb   = ~0;
   struct  sockaddr_in saProxyAddress;
+  struct  threadParam *pThreadParam=(struct threadParam*)pTP;
 
   /* Dynamische Bereitstellung des benötigten Speichers */
   struct  urlPar    *pUrlPar     = (struct urlPar*)   malloc(sizeof(struct urlPar));
@@ -545,23 +546,24 @@ void* handleClient(int* sProxyClient){
   struct  netStream *pErrBuf     = (struct netStream*)malloc(sizeof(struct netStream));
 /////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^
 
-  if (!receiveHeader      (pClientBuf     ,*sProxyClient))
-  if (!fillParFromBuf     (pUrlPar        ,pClientBuf->pBuf))
+  if (!receiveHeader      (pClientBuf             ,pThreadParam->socketID))
+  if (!fillParFromBuf     (pUrlPar                ,pClientBuf->pBuf))
   if (!createSocket       (&sProxyWeb))
-  if (!generateWebAddress (&saProxyAddress,pUrlPar))
-  if (!connectSocket      (sProxyWeb      ,&saProxyAddress))
-  if (!sendBuffer         (sProxyWeb      ,pClientBuf))
-  if (!receiveBuffer      (pWebBuf        ,sProxyWeb))
-  if (!sendBuffer         (*sProxyClient  ,pWebBuf));
+  if (!generateWebAddress (&saProxyAddress        ,pUrlPar))
+  if (!connectSocket      (sProxyWeb              ,&saProxyAddress))
+  if (!sendBuffer         (sProxyWeb              ,pClientBuf))
+  if (!receiveBuffer      (pWebBuf                ,sProxyWeb))
+  if (!sendBuffer         (pThreadParam->socketID ,pWebBuf));
 
 #ifdef _DEBUG
   fprintf(stderr,"HC - END\n");
 #endif
 
-  close(*sProxyClient);
+  close(pThreadParam->socketID);
   close(sProxyWeb);
   free(pClientBuf->pBuf);
   free(pClientBuf);
+  free(pThreadParam);
   free(pWebBuf->pBuf);
   free(pWebBuf);
   free(pUrlPar);
@@ -583,6 +585,7 @@ void* handleServer(){
   int     sProxyClient= ~0,
           sProxyWait  = ~0;
   struct  sockaddr_in saAddress;
+  struct  threadParam *pThreadParam;
 
   if(!generateProxyAddress(&saAddress))             return NULL;
   if(!createSocket        (&sProxyWait))            return NULL;
@@ -591,12 +594,14 @@ void* handleServer(){
 
   //Endlos-schleife fuer accepts
   while(1){
-    bOK=acceptSocket(&sProxyWait,&sProxyClient);
+    bOK=acceptSocket(sProxyWait,&sProxyClient);
     if(bOK==TRUE){
       #ifdef _DEBUG
-      fprintf(stderr,"***threadNewClient\n");
+      fprintf(stderr,"***threadNewClient %d\n",sProxyClient);
       #endif
-      threadNewClient(&sProxyClient);
+      pThreadParam=(struct threadParam*)malloc(sizeof(struct threadParam));
+      pThreadParam->socketID=sProxyClient;
+      threadNewClient((void*)pThreadParam);
     }
   }
   closesocket(sProxyWait);
@@ -611,9 +616,9 @@ void* handleServer(){
  * @param clientSocket Pointer auf Socket-ID
  * @return EXIT_SUCCESS
  */
-int threadNewClient(int* clientSocket){
+int threadNewClient(void *pThreadParam){
    pthread_t linux_thread;
-   pthread_create(&linux_thread,NULL,(void*)&handleClient,clientSocket);
+   pthread_create(&linux_thread,NULL,(void*)&handleClient,pThreadParam);
    return EXIT_SUCCESS;
 }
 
