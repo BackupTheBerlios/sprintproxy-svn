@@ -26,22 +26,18 @@
 #ifndef SPRINTPROXY_H
   #define SPRINTPROXY_H
 
-  /* Headerfiles fuer Unix/Linux */
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <pthread.h>
   #include <sys/types.h>
   #include <sys/socket.h>
   #include <netdb.h>
   #include <netinet/in.h>
-  #include <unistd.h>
-  #include <fcntl.h>
+  /*++++++++++++++++++++*/
 
   #define INVALID_SOCKET -1
   #define SOCKET_ERROR -1
 
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <pthread.h>
-  #include <assert.h>
-  /*++++++++++++++++++++*/
   #define HTTP_PORT 80
   #define HTTP_PROXY_PORT 12346
   #define CRLF "\x0D\x0A\x0D\x0A"
