@@ -29,8 +29,31 @@
 
 #include "sprintproxy.h"
 
-#define OUTPUT
+#define _OUTPUT
 //#define _DEBUG
+#define _STATS
+
+/*********************************************************
+ * Netzwerkverkehr zählen
+ * @param int Bytes der übertragenen Datei
+ * @param short IN=0 OUT=1
+ * @return Pointer auf statistik-Struktur
+ */
+#ifdef _STATS
+struct stats* countTraffic(int vBytes, unsigned short inout){
+  static struct stats completeStats;
+
+  if(inout){
+    completeStats.bytesOUT+=vBytes;
+    completeStats.filesOUT++;
+  }else{
+    completeStats.bytesIN+=vBytes;
+    completeStats.filesIN++;
+  }
+
+  return &completeStats;
+}
+#endif
 
 /*********************************************************
  * Adress-Struktur vom Server Richtung Client füllen
@@ -88,7 +111,9 @@ return TRUE;
 }
 
 /*************************************************************************************
- *Neuen TCP-Socket erstellen (TCP/IP)*/
+ *Neuen TCP-Socket erstellen (TCP/IP)
+ * @param int* Pointer auf SocketStructur richtung WEB
+ */
 int createSocket(int *sProxyWeb){
 #ifdef _DEBUG
   fprintf(stderr,"++ createSocket\n");
@@ -117,6 +142,7 @@ int createSocket(int *sProxyWeb){
 
 /*************************************************************************************
  * warte auf verbindung...
+ * @param int* Pointer auf Socket, der in Listen-Zustand wechseln soll
  */
 int listenSocket(int* pSocket){
 #ifdef _DEBUG
@@ -146,7 +172,9 @@ int listenSocket(int* pSocket){
 }
 
 /*************************************************************************************
- * Akzeptiere Socket
+ * Akzeptiere verbundenen Socket
+ * @param int* Pointer auf akzeptierten Socket
+ * @param int* Rückggabe pointer auf Verbundenen Socket
  */
 int acceptSocket(int *pAccepted,int *pConnected){
 #ifdef _DEBUG
@@ -175,7 +203,9 @@ int acceptSocket(int *pAccepted,int *pConnected){
 }
 
 /*************************************************************************************
- * Erstellter Socket mit Adresse connecten
+ * Erstellten Socket mit Adresse connecten
+ * @param int SocketID
+ * @param sockaddr_in* Rückgabepointer auf auf neue Socket-Adresse
  */
 int connectSocket(int sSocket,struct sockaddr_in *pAddress){
 #ifdef _DEBUG
@@ -207,6 +237,8 @@ int connectSocket(int sSocket,struct sockaddr_in *pAddress){
 
 /*************************************************************************************
  * binde socket an Adresse
+ * @param int* Pointer auf SocketID
+ * @param sockaddr_in* Rückgabepointer auf auf neue Socket-Adresse
  */
 int bindSocket(int *pSocket,struct sockaddr_in *pAddress){
 #ifdef _DEBUG
@@ -237,6 +269,8 @@ int bindSocket(int *pSocket,struct sockaddr_in *pAddress){
 
 /*************************************************************************************
  * char-array an socket schicken
+ * @param int SocketID
+ * @param webBuf* Pointer auf zu versendenden Buffer
  */
 int sendBuffer(int sSocket, struct webBuf* pWebBuf){
 #ifdef _DEBUG
@@ -246,9 +280,16 @@ int sendBuffer(int sSocket, struct webBuf* pWebBuf){
 int vSent = ~0;
 
   vSent=send(sSocket,pWebBuf->pBuf,pWebBuf->len,0);
+
 #ifdef _OUTPUT
   fprintf(stderr,"%d Bytes sent\n",vSent);
 #endif
+
+#ifdef _STATS
+  struct stats* tmpStats=countTraffic(vSent,1);
+  fprintf(stderr,"STATS: FilesOUT %d , BytesOUT %d\n",tmpStats->filesOUT,tmpStats->bytesOUT);
+#endif
+
 #ifdef _DEBUG
   fprintf(stderr,"-- sendbuffer\n");
 #endif
@@ -269,7 +310,7 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
   pWebBuf->pBuf[RECEIVE_BUFFER_LENGTH]='\0';
 
 #ifdef _OUTPUT
-  fprintf(stderr,"<<<<<<<<%d Bytes read\n%s>>>>>>>>",pWebBuf->len,pWebBuf->pBuf);
+  fprintf(stderr,"<<<<<<<<%d Bytes read\n>>>>>>>>",pWebBuf->len);
 #endif
 #ifdef _DEBUG
   fprintf(stderr,"-- receiveHEADER\n");
@@ -338,6 +379,11 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
   pWebBuf->len=vTextLength;
   pWebBuf->pBuf=pRecord;
 
+#ifdef _STATS
+  struct stats* tmpStats=countTraffic(vTextLength,0);
+  fprintf(stderr,"STATS: FilesIN %d , BytesIN %d\n",tmpStats->filesIN,tmpStats->bytesIN);
+#endif
+
 #ifdef _DEBUG
   fprintf(stderr,"\n-- receivebuffer\n");
 #endif
@@ -401,13 +447,13 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
 /**************************************************************************************
  * Abwicklung eines neuen Clients
  */
-void* handleClient(int* sPC){
+void* handleClient(int* sProxyClient){
 #ifdef _DEBUG
   fprintf(stderr,"++ handleclient\n");
 #endif
 /////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^
-  int     sProxyWeb   = ~0,
-          sProxyClient= *sPC;
+  int     sProxyWeb   = ~0;
+          //sProxyClient= *sPC;
   struct  sockaddr_in saProxyAddress;
 
   /* Dynamische Bereitstellung des benötigten Speichers */
@@ -424,7 +470,7 @@ void* handleClient(int* sPC){
   pErrBuf->len=strlen(pErrBuf->pBuf)+1;
 
   // ZIEL des Webanfrage Ermitteln
-  receiveHeader(pClientBuf,sProxyClient);
+  receiveHeader(pClientBuf,*sProxyClient);
   fillParFromBuf(pUrlPar,pClientBuf->pBuf);
 
 #ifdef _OUTPUT
@@ -436,7 +482,7 @@ void* handleClient(int* sPC){
   if(!generateWebAddress(&saProxyAddress,pUrlPar)){
     fprintf(stderr,"ABORTgenerateWebadress");
 
-    sendBuffer(sProxyClient, pErrBuf);
+    sendBuffer(*sProxyClient, pErrBuf);
   }
   if(!connectSocket(sProxyWeb,&saProxyAddress))
     fprintf(stderr,"ABORTconnectSocket");
@@ -451,14 +497,14 @@ void* handleClient(int* sPC){
   fprintf(stderr,"RESPONSE from: %s (%d Bytes)\n",pUrlPar->host,pWebBuf->len);
 #endif
 
-  sendBuffer(sProxyClient,pWebBuf);
+  sendBuffer(*sProxyClient,pWebBuf);
 
   free(pClientBuf->pBuf);
   free(pClientBuf);
   free(pWebBuf->pBuf);
   free(pWebBuf);
   free(pUrlPar);
-  close(sProxyClient);
+  close(*sProxyClient);
   close(sProxyWeb);
 
 #ifdef _DEBUG

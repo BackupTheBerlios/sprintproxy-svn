@@ -65,7 +65,21 @@
     int  len;
   };
 
-  /************************************************
+  struct stats
+  {
+    unsigned long bytesIN;
+    unsigned int  filesIN;
+    unsigned long bytesOUT;
+    unsigned int  filesOUT;
+  };
+
+
+  /*********************************************************
+   *Netzwerkverkehr zählen
+   */
+  struct stats* countTraffic(int vBytes,unsigned short inout);
+
+  /*********************************************************
   *Adress-Struktur RICHTUNG CLIENT füllen
   */
   void generateProxyAddress(struct sockaddr_in* pAddress);
