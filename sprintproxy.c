@@ -41,6 +41,9 @@
  */
 #ifdef _STATS
 struct stats* countTraffic(int vBytes, unsigned short inout){
+  #ifdef _DEBUG
+  fprintf(stderr,"++ countTraffic\n");
+  #endif
   static struct stats completeStats;
 
   if(inout){
@@ -50,6 +53,9 @@ struct stats* countTraffic(int vBytes, unsigned short inout){
     completeStats.bytesIN+=vBytes;
     completeStats.filesIN++;
   }
+  #ifdef _DEBUG
+  fprintf(stderr,"-- countTraffic\n");
+  #endif
   return &completeStats;
 }
 #endif
@@ -95,28 +101,28 @@ int generateWebAddress(struct sockaddr_in *pAddress,struct urlPar *pUrlPar){
 
   memset(pAddress,0,sizeof(struct sockaddr_in)); // zuerst alles auf 0 setzten
 
-  fprintf(stderr,"2\n");
+  fprintf(stderr,"1\n");
 
   pAddress->sin_family  = AF_INET;
   pAddress->sin_port    = htons(HTTP_PORT);
 
-  fprintf(stderr,"3\n");
+  fprintf(stderr,"2\n");
 
   //Host in verwendbare Werte umrechnen
   pAddress->sin_addr.s_addr=inet_addr(pUrlPar->host);
   if(pAddress->sin_addr.s_addr==INADDR_NONE || (strcmp(pUrlPar->host, "255.255.255.255"))){
-    fprintf(stderr,"4 %s:\n",pUrlPar->host);
+    fprintf(stderr,"3 %s:\n",pUrlPar->host);
 
     Host = gethostbyname(pUrlPar->host);
     if (Host == NULL){
       fprintf(stderr,"-- generateWebAddress | ERR: Host nicht erreichbar\n");
       return FALSE;
     }
-    fprintf(stderr,"5\n");
+    fprintf(stderr,"4\n");
 
     //Zeiger auf Socketstruktur für Rückgabe füllen
     memcpy((char*)&pAddress->sin_addr.s_addr,Host->h_addr,4);
-    fprintf(stderr,"6\n");
+    fprintf(stderr,"5\n");
 
     if(pAddress->sin_addr.s_addr==INADDR_NONE){
       fprintf(stderr,"-- generateWebAddress | ERR: Adresse nicht erstellbar\n");
@@ -189,9 +195,9 @@ int listenSocket(int* pSocket){
  * @param int* Pointer auf akzeptierten Socket
  * @param int* Rückggabe pointer auf Verbundenen Socket
  */
-int acceptSocket(int accepted,int* pConnected){
+int acceptSocket(int accepted,int *pConnected){
   #ifdef _DEBUG
-  fprintf(stderr,"++ acceptSocket\n");
+  fprintf(stderr,"++ acceptSocket %d\n",accepted);
   #endif
 
   *pConnected=accept(accepted,NULL,NULL);
@@ -546,14 +552,14 @@ void* handleClient(void* pTP){
   struct  netStream *pErrBuf     = (struct netStream*)malloc(sizeof(struct netStream));
 /////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^/////////^^^^^^^^
 
-  if (!receiveHeader      (pClientBuf             ,pThreadParam->socketID))
-  if (!fillParFromBuf     (pUrlPar                ,pClientBuf->pBuf))
-  if (!createSocket       (&sProxyWeb))
-  if (!generateWebAddress (&saProxyAddress        ,pUrlPar))
-  if (!connectSocket      (sProxyWeb              ,&saProxyAddress))
-  if (!sendBuffer         (sProxyWeb              ,pClientBuf))
-  if (!receiveBuffer      (pWebBuf                ,sProxyWeb))
-  if (!sendBuffer         (pThreadParam->socketID ,pWebBuf));
+  if (receiveHeader      (pClientBuf             ,pThreadParam->socketID))
+  if (fillParFromBuf     (pUrlPar                ,pClientBuf->pBuf))
+  if (createSocket       (&sProxyWeb))
+  if (generateWebAddress (&saProxyAddress        ,pUrlPar))
+  if (connectSocket      (sProxyWeb              ,&saProxyAddress))
+  if (sendBuffer         (sProxyWeb              ,pClientBuf))
+  if (receiveBuffer      (pWebBuf                ,sProxyWeb))
+  if (sendBuffer         (pThreadParam->socketID ,pWebBuf));
 
 #ifdef _DEBUG
   fprintf(stderr,"HC - END\n");
