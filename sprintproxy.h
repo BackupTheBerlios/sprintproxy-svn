@@ -124,11 +124,11 @@
   int sendError(const char* pErrTxt, int sSocket, struct netStream * pStream);
 
   /*************************************************************************************
-  * char-array vom socket lesen
+  * daten vom socket lesen
   */
-
   int receiveBuffer(struct netStream* pWebBuf,int sProxyClient);
   int receiveHeader(struct netStream* pWebBuf,int sProxyClient);
+
   /**************************************************************************************
   *buffer auswerten
   */

@@ -356,11 +356,12 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
   #endif
 
   pWebBuf->len=recv(sProxyClient, pWebBuf->pBuf, RECEIVE_BUFFER_LENGTH , 0);
-//  pWebBuf->pBuf[pWebBuf->len-1]='\0';
+  pWebBuf->pBuf[pWebBuf->len-1]='\0';
 
   #ifdef _STATS
-  fprintf(stderr,"<<<<<<<<%d Bytes read\n>>>>>>>>",pWebBuf->len);
-  #endif
+  fprintf(stderr,"<<<<<<<<%d Bytes read>>>>>>>>",pWebBuf->len);
+  fprintf(stderr,"<<<<<<<<\n%s\n>>>>>>>>",pWebBuf->pBuf);
+#endif
 
   if(pWebBuf->len<=0){
     #ifdef _DEBUG
@@ -395,14 +396,13 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
 
   int     vBufLen     = 0;
 
-
   /*initialisere speicher-buffer als leeren string*/
   pRecord=(char*)malloc(1);
   pRecord[0]='\0';
 
   /*datenpakete byte für byte einlesen*/
   while((vCount = recv(sProxyClient, &cRec, 1 , 0))==1){
-    cBuf[vBufLen]=cRec;                               /*empfangenes zeichen speichern*/
+    cBuf[vBufLen]=cRec;                                 /*empfangenes zeichen speichern*/
 
     ++vBufLen;
 
@@ -412,13 +412,13 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
       fprintf(stderr,"RBL-start %d,%d",(int)vBufLen,(int)vTextLength);
       #endif
 
-      vTextLength+= vBufLen;                           /*neue gesamt-länge berechnen*/
-      pTmp=(char*)malloc(sizeof(char)*vTextLength);   /*neuen speicherbereich für gesamten buffer anlegen*/
+      vTextLength+= vBufLen;                            /*neue gesamt-länge berechnen*/
+      pTmp=(char*)malloc(sizeof(char)*vTextLength);     /*neuen speicherbereich für gesamten buffer anlegen*/
 
-      memcpy(pTmp,pRecord,vTextLength-vBufLen);       /*alten inhalt übernehmen*/
+      memcpy(pTmp,pRecord,vTextLength-vBufLen);         /*alten inhalt übernehmen*/
       free(pRecord);
       pRecord=pTmp;
-      memcpy(pRecord+vTextLength-vBufLen,cBuf,vBufLen);       /*neuen inhalt speichern*/
+      memcpy(pRecord+vTextLength-vBufLen,cBuf,vBufLen); /*neuen inhalt speichern*/
 
       vBufLen=0;
       #ifdef _DEBUG
@@ -427,7 +427,7 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
     }
   }
 
-  vTextLength+=vBufLen;                           /*neue gesamt-länge berechnen*/
+  vTextLength+=vBufLen;                                 /*neue gesamt-länge berechnen*/
   if(vTextLength<=0){
     #ifdef _DEBUG
     fprintf(stderr,"\n-- receivebuffer | Error zu kurz %d\n",vTextLength);
@@ -435,12 +435,12 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
     return FALSE;
   }
 
-  pTmp=(char*)malloc(sizeof(char)*vTextLength);   /*neuen speicherbereich für gesamten buffer anlegen*/
+  pTmp=(char*)malloc(sizeof(char)*vTextLength);         /*neuen speicherbereich für gesamten buffer anlegen*/
 
-  memcpy(pTmp,pRecord,vTextLength-vBufLen);       /*alten inhalt übernehmen*/
+  memcpy(pTmp,pRecord,vTextLength-vBufLen);             /*alten inhalt übernehmen*/
   free(pRecord);
   pRecord=pTmp;
-  memcpy(pRecord+vTextLength-vBufLen,cBuf,vBufLen);       /*neuen inhalt speichern*/
+  memcpy(pRecord+vTextLength-vBufLen,cBuf,vBufLen);     /*neuen inhalt speichern*/
 
   pWebBuf->len=vTextLength;
   pWebBuf->pBuf=pRecord;
@@ -553,6 +553,10 @@ void* handleClient(int* sProxyClient){
   if (!sendBuffer         (sProxyWeb      ,pClientBuf))
   if (!receiveBuffer      (pWebBuf        ,sProxyWeb))
   if (!sendBuffer         (*sProxyClient  ,pWebBuf));
+
+#ifdef _DEBUG
+  fprintf(stderr,"HC - END\n");
+#endif
 
   close(*sProxyClient);
   close(sProxyWeb);
