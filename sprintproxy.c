@@ -50,7 +50,6 @@ struct stats* countTraffic(int vBytes, unsigned short inout){
     completeStats.bytesIN+=vBytes;
     completeStats.filesIN++;
   }
-
   return &completeStats;
 }
 #endif
@@ -63,12 +62,10 @@ void generateProxyAddress(struct sockaddr_in* pAddress){
 #ifdef _DEBUG
   fprintf(stderr,"++ generateProxyAddress\n");
 #endif
-
   memset(pAddress,0,sizeof(struct sockaddr_in));
   pAddress->sin_family=AF_INET;
   pAddress->sin_port=htons(HTTP_PROXY_PORT);
   pAddress->sin_addr.s_addr=INADDR_ANY;
-
 #ifdef _DEBUG
   fprintf(stderr,"-- generateProxyAddress\n");
 #endif
@@ -84,7 +81,6 @@ int generateWebAddress(struct sockaddr_in *pAddress,struct urlPar *pUrlPar){
 #ifdef _DEBUG
   fprintf(stderr,"++ generateWebAddress\n");
 #endif
-
   memset(pAddress,0,sizeof(struct sockaddr_in)); // zuerst alles auf 0 setzten
 
   pAddress->sin_family=AF_INET;
@@ -97,13 +93,13 @@ int generateWebAddress(struct sockaddr_in *pAddress,struct urlPar *pUrlPar){
       return FALSE;
     }
 
+    //Zeiger auf Socketstruktur für Rückgabe füllen
     strncpy((char*)&pAddress->sin_addr.s_addr,Host->h_addr,4);
     if(pAddress->sin_addr.s_addr==INADDR_NONE){
       fprintf(stderr,"ERROR: Host nicht erreichbar\n");
       return FALSE;
     }
   }
-
 #ifdef _DEBUG
   fprintf(stderr,"-- generateWebAddress\n");
 #endif
@@ -118,22 +114,19 @@ int createSocket(int *sProxyWeb){
 #ifdef _DEBUG
   fprintf(stderr,"++ createSocket\n");
 #endif
-
   *sProxyWeb=socket(AF_INET,SOCK_STREAM,0);
 
   if(*sProxyWeb==INVALID_SOCKET){
     perror("Fehler: Der Socket konnte nicht erstellt werden");
-
 #ifdef _DEBUG
     fprintf(stderr,"-- createSocket\n");
 #endif
-    return FALSE;
+
+  return FALSE;
   }else{
 #ifdef _DEBUG
     fprintf(stderr,"Socket erstellt!\n");
-
     fprintf(stderr,"pSocket:%d\n",*sProxyWeb);
-
     fprintf(stderr,"-- createSocket\n");
 #endif
     return TRUE;
@@ -185,8 +178,6 @@ int acceptSocket(int *pAccepted,int *pConnected){
 
   if(*pConnected==INVALID_SOCKET){
     perror("Fehler: accept");
-
-    /*SOCKETSLEEP*/
 #ifdef _DEBUG
     fprintf(stderr,"-- acceptSocket\n");
 #endif
@@ -195,6 +186,7 @@ int acceptSocket(int *pAccepted,int *pConnected){
 #ifdef _OUTPUT
     fprintf(stderr,"Neue Verbindung wurde akzeptiert!\n");
 #endif
+
 #ifdef _DEBUG
     fprintf(stderr,"-- acceptSocket\n");
 #endif
@@ -215,12 +207,11 @@ int connectSocket(int sSocket,struct sockaddr_in *pAddress){
   long  receive  = ~0;
 
   receive=connect(sSocket,(struct sockaddr*)pAddress,sizeof(struct sockaddr_in));
-
 #ifdef _DEBUG
   fprintf(stderr,"++++ cS\n");
 #endif
 
-  if(receive==SOCKET_ERROR){
+if(receive==SOCKET_ERROR){
     perror("Fehler: connect gescheitert");
     return FALSE;
   }else{
@@ -228,7 +219,6 @@ int connectSocket(int sSocket,struct sockaddr_in *pAddress){
     fprintf(stderr,"Verbunden ..\n");
 #endif
   }
-
 #ifdef _DEBUG
   fprintf(stderr,"-- connectSocket\n");
 #endif
@@ -260,7 +250,6 @@ int bindSocket(int *pSocket,struct sockaddr_in *pAddress){
     fprintf(stderr,"Socket an port %d gebunden\n",HTTP_PROXY_PORT);
 #endif
   }
-
 #ifdef _DEBUG
   fprintf(stderr,"-- bindSocket\n");
 #endif
