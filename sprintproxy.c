@@ -29,9 +29,9 @@
 
 #include "sprintproxy.h"
 
-#define _OUTPUT
-//#define _DEBUG
-#define _STATS
+//#define _OUTPUT
+#define _DEBUG
+//#define _STATS
 
 /*********************************************************
  * Netzwerkverkehr zählen
@@ -58,17 +58,23 @@ struct stats* countTraffic(int vBytes, unsigned short inout){
  * Adress-Struktur vom Server Richtung Client füllen
  * @param pAddress Pointer auf zu füllende Socket-Struktur
  */
-void generateProxyAddress(struct sockaddr_in* pAddress){
+int generateProxyAddress(struct sockaddr_in* pAddress){
 #ifdef _DEBUG
   fprintf(stderr,"++ generateProxyAddress\n");
 #endif
+
   memset(pAddress,0,sizeof(struct sockaddr_in));
   pAddress->sin_family=AF_INET;
   pAddress->sin_port=htons(HTTP_PROXY_PORT);
   pAddress->sin_addr.s_addr=INADDR_ANY;
+
+  if(!pAddress->sin_port || pAddress==NULL)
+    return FALSE;
+
 #ifdef _DEBUG
   fprintf(stderr,"-- generateProxyAddress\n");
 #endif
+  return TRUE;
 }
 
 /*************************************************************************************
@@ -77,10 +83,12 @@ void generateProxyAddress(struct sockaddr_in* pAddress){
  *  @param pUrlPar  Zeiger auf URL-Parameter
  */
 int generateWebAddress(struct sockaddr_in *pAddress,struct urlPar *pUrlPar){
-  struct hostent* Host;
 #ifdef _DEBUG
   fprintf(stderr,"++ generateWebAddress\n");
 #endif
+
+  struct hostent* Host;
+
   memset(pAddress,0,sizeof(struct sockaddr_in)); // zuerst alles auf 0 setzten
 
   pAddress->sin_family=AF_INET;
@@ -114,6 +122,7 @@ int createSocket(int *sProxyWeb){
 #ifdef _DEBUG
   fprintf(stderr,"++ createSocket\n");
 #endif
+
   *sProxyWeb=socket(AF_INET,SOCK_STREAM,0);
 
   if(*sProxyWeb==INVALID_SOCKET){
@@ -290,14 +299,20 @@ int vSent = ~0;
  * @param webBuf* Struktur zum füllen des Inhalts (pBuf) und Länge (len) des Datenstreams
  * @param int     Socket-ID
  */
-void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
+int receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
 #ifdef _DEBUG
   fprintf(stderr,"++ receiveHEADER\n");
 #endif
 
   pWebBuf->len=recv(sProxyClient, pWebBuf->pBuf, RECEIVE_BUFFER_LENGTH , 0);
-  pWebBuf->pBuf[RECEIVE_BUFFER_LENGTH]='\0';
+  pWebBuf->pBuf[pWebBuf->len]='\0';
 
+  if(pWebBuf->len<=0)
+    return FALSE;
+
+#ifdef _DEBUG
+  fprintf(stderr,"#########\n%s\n#########\n",pWebBuf->pBuf);
+#endif
 #ifdef _OUTPUT
   fprintf(stderr,"<<<<<<<<%d Bytes read\n>>>>>>>>",pWebBuf->len);
 #endif
@@ -311,7 +326,7 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
  * @param webBuf* Struktur zum füllen des Inhalts (pBuf) und Länge (len) des Datenstreams
  * @param int     Socket-ID
  */
- void receiveBuffer(struct webBuf* pWebBuf,int sProxyClient){
+ int receiveBuffer(struct webBuf* pWebBuf,int sProxyClient){
 #ifdef _DEBUG
   fprintf(stderr,"++ receivebuffer\n");
 #endif
@@ -358,6 +373,9 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
   }
 
   vTextLength+=vBufLen;                           /*neue gesamt-länge berechnen*/
+  if(vTextLength<=0)
+    return FALSE;
+
   pTmp=(char*)malloc(sizeof(char)*vTextLength);   /*neuen speicherbereich für gesamten buffer anlegen*/
 
   memcpy(pTmp,pRecord,vTextLength-vBufLen);       /*alten inhalt übernehmen*/
@@ -376,6 +394,7 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
 #ifdef _DEBUG
   fprintf(stderr,"\n-- receivebuffer\n");
 #endif
+  return TRUE;
 }
 
 /**************************************************************************************
@@ -383,7 +402,7 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
  * @param pUrlPar Pointer auf eine zu füllende Struktur
  * @param pBuf    Pointer auf den vom Client erhaltenen Char-Buffer
  */
- void fillParFromBuf(struct urlPar* pUrlPar, char *pBuf){
+ int fillParFromBuf(struct urlPar* pUrlPar, char *pBuf){
 #ifdef _DEBUG
   fprintf(stderr,"++ fillparfrombuf\n");
 #endif
@@ -427,10 +446,12 @@ void receiveHeader(struct webBuf* pWebBuf, int sProxyClient){
     pUrlPar->url [pUrlPar->len_url]  = '\0';
     pUrlPar->host[pUrlPar->len_host] = '\0';
 
-  }
+  }else
+    return FALSE;
 #ifdef _DEBUG
   fprintf(stderr,"-- fillparfrombuf\n");
 #endif
+  return TRUE;
 }
 
 /**************************************************************************************
@@ -514,17 +535,28 @@ void* handleServer(){
           sProxyWait  = ~0;
   struct  sockaddr_in saAddress;
 
-  generateProxyAddress(&saAddress);
-  createSocket(&sProxyWait);
-  bindSocket(&sProxyWait,&saAddress);
-  listenSocket(&sProxyWait);
+  if(!generateProxyAddress(&saAddress)){
+    fprintf(stderr,"!!! Proxy-Netzwerk-Adresse konnte nicht angelegt werden. ABBRUCH !!!\n");
+    return NULL;
+  }
+
+  if(!createSocket(&sProxyWait)){
+    fprintf(stderr,"!!! Proxy-Socket konnte nicht angelegt werden. ABBRUCH !!!\n");
+    return NULL;
+  }
+
+  if(!bindSocket(&sProxyWait,&saAddress)){
+    fprintf(stderr,"!!! Proxy-Socket konnte nicht an den PORT gebunden werden. ABBRUCH !!!\n");
+    return NULL;
+  }
+
+  if(!listenSocket(&sProxyWait)){
+    fprintf(stderr,"!!! Proxy-Socket konnte nicht in den HOEREN-Zustand gebracht werden. ABBRUCH !!!\n");
+    return NULL;
+  }
 
   //Endlos-schleife fuer accepts
   while(1){
-#ifdef _DEBUG
-    fprintf(stderr,"***Serverschleife***\n");
-#endif
-
     bOK=acceptSocket(&sProxyWait,&sProxyClient);
     if(bOK==TRUE){
 #ifdef _DEBUG

@@ -82,7 +82,7 @@
   /*********************************************************
   *Adress-Struktur RICHTUNG CLIENT füllen
   */
-  void generateProxyAddress(struct sockaddr_in* pAddress);
+  int generateProxyAddress(struct sockaddr_in* pAddress);
 
   /*************************************************************************************
   *Adress-Struktur RICHTUNG WEB füllen
@@ -122,12 +122,12 @@
   * char-array vom socket lesen
   */
 
-  void receiveBuffer(struct webBuf* pWebBuf,int sProxyClient);
-  void receiveHeader(struct webBuf* pWebBuf,int sProxyClient);
+  int receiveBuffer(struct webBuf* pWebBuf,int sProxyClient);
+  int receiveHeader(struct webBuf* pWebBuf,int sProxyClient);
   /**************************************************************************************
   *buffer auswerten
   */
-  void fillParFromBuf(struct urlPar* pUrlPar, char *pBuf);
+  int fillParFromBuf(struct urlPar* pUrlPar, char *pBuf);
 
   /**************************************************************************************
   * Abwicklung fuer den Modus [Client-Start]
