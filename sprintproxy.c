@@ -134,8 +134,8 @@ int createSocket(int *sProxyWeb){
   return FALSE;
   }else{
 #ifdef _DEBUG
-    fprintf(stderr,"Socket erstellt!\n");
-    fprintf(stderr,"pSocket:%d\n",*sProxyWeb);
+    fprintf(stderr,"§§Socket erstellt!\n");
+    fprintf(stderr,"§§pSocket:%d\n",*sProxyWeb);
     fprintf(stderr,"-- createSocket\n");
 #endif
     return TRUE;
@@ -317,6 +317,8 @@ int vSent = 0;
     webBuf.len =strlen(webBuf.pBuf)+1;
 
     vSent=send(sSocket,webBuf.pBuf,webBuf.len,0);
+
+    free(webBuf.pBuf);
   }
 
 #ifdef _OUTPUT
@@ -343,20 +345,18 @@ int receiveHeader(struct netStream* pWebBuf, int sProxyClient){
 #endif
 
   pWebBuf->len=recv(sProxyClient, pWebBuf->pBuf, RECEIVE_BUFFER_LENGTH , 0);
-  pWebBuf->pBuf[pWebBuf->len]='\0';
+  pWebBuf->pBuf[pWebBuf->len-1]='\0';
 
   if(pWebBuf->len<=0)
     return FALSE;
 
-#ifdef _DEBUG
-  fprintf(stderr,"#########\n%s\n#########\n",pWebBuf->pBuf);
-#endif
 #ifdef _OUTPUT
   fprintf(stderr,"<<<<<<<<%d Bytes read\n>>>>>>>>",pWebBuf->len);
 #endif
 #ifdef _DEBUG
   fprintf(stderr,"-- receiveHEADER\n");
 #endif
+  return TRUE;
 }
 
 /****************************************************************************************
